@@ -112,7 +112,7 @@ export const TRANSLATIONS = {
     enableVoice: "Multilingual Voice Alerts",
     voiceSpeed: "Voice Speed",
     selectLanguage: "Select Language",
-    resetData: "Reset Demo Data",
+    resetData: "Reset App Data & Cache",
     aboutApp: "About FraudSafe QR",
     aboutText: "CSE Mini Project: Fraud-Safe QR Application with Multilingual Voice Assistance. Built with React Native & Expo.",
 

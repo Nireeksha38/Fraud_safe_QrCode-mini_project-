@@ -140,9 +140,7 @@ export default function PinVerificationModal({
 
               {errorMsg ? (
                 <Text style={styles.errorText}>{errorMsg}</Text>
-              ) : (
-                <Text style={styles.hintText}>Default demo PIN is 4321</Text>
-              )}
+              ) : null}
 
               {/* Custom Numeric Keypad */}
               <View style={styles.keypad}>

@@ -86,8 +86,8 @@ export default function SettingsScreen({ navigation, language, setLanguage }) {
 
   const handleResetData = async () => {
     Alert.alert(
-      "Reset Demo Data",
-      "Are you sure you want to reset all wallet funds, transactions, and settings to factory defaults?",
+      "Reset App Data",
+      "Are you sure you want to reset all wallet funds, transactions, and settings to defaults?",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -97,7 +97,7 @@ export default function SettingsScreen({ navigation, language, setLanguage }) {
             await storage.resetDemoData();
             setLanguage("en");
             loadSettings();
-            Alert.alert("Reset Done", "Demo data reset successfully.");
+            Alert.alert("Reset Done", "App data reset successfully.");
           },
         },
       ]

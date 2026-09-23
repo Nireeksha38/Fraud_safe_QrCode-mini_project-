@@ -12,14 +12,12 @@ import { getTranslation } from "../utils/i18n";
 import { storage } from "../utils/storage";
 import HeaderBar from "../components/HeaderBar";
 import LanguageSelectorModal from "../components/LanguageSelectorModal";
-import SampleQrModal from "../components/SampleQrModal";
 
 export default function HomeScreen({ navigation, language, setLanguage }) {
   const [balance, setBalance] = useState(10000);
   const [user, setUser] = useState({ name: "User", phone: "" });
   const [recentTx, setRecentTx] = useState([]);
   const [langModalVisible, setLangModalVisible] = useState(false);
-  const [sampleModalVisible, setSampleModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -49,10 +47,6 @@ export default function HomeScreen({ navigation, language, setLanguage }) {
     const newBal = balance + amount;
     await storage.setWalletBalance(newBal);
     setBalance(newBal);
-  };
-
-  const handleSelectSample = (rawPayload) => {
-    navigation.navigate("QR Scanner", { samplePayload: rawPayload });
   };
 
   return (
@@ -123,26 +117,6 @@ export default function HomeScreen({ navigation, language, setLanguage }) {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Sample Scenario Launcher Banner */}
-        <TouchableOpacity
-          style={styles.sampleBanner}
-          onPress={() => setSampleModalVisible(true)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.sampleLeft}>
-            <Text style={styles.sampleIcon}>⚡</Text>
-            <View>
-              <Text style={styles.sampleTitle}>
-                {getTranslation(language, "trySampleQRs")}
-              </Text>
-              <Text style={styles.sampleDesc}>
-                {getTranslation(language, "trySampleDesc")}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.sampleArrow}>➔</Text>
-        </TouchableOpacity>
 
         {/* Quick Actions Grid (Fig 9.5) */}
         <Text style={styles.sectionTitle}>
@@ -297,14 +271,6 @@ export default function HomeScreen({ navigation, language, setLanguage }) {
         activeLanguage={language}
         onSelectLanguage={setLanguage}
         onClose={() => setLangModalVisible(false)}
-      />
-
-      {/* Preset Test Scenarios Modal */}
-      <SampleQrModal
-        visible={sampleModalVisible}
-        language={language}
-        onSelectPreset={handleSelectSample}
-        onClose={() => setSampleModalVisible(false)}
       />
     </View>
   );

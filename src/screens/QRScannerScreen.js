@@ -24,7 +24,6 @@ import HeaderBar from "../components/HeaderBar";
 import LanguageSelectorModal from "../components/LanguageSelectorModal";
 import FraudAlertCard from "../components/FraudAlertCard";
 import PinVerificationModal from "../components/PinVerificationModal";
-import SampleQrModal from "../components/SampleQrModal";
 
 export default function QRScannerScreen({ route, navigation, language, setLanguage }) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -36,8 +35,10 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [langModalVisible, setLangModalVisible] = useState(false);
-  const [sampleModalVisible, setSampleModalVisible] = useState(false);
   const [completedTxn, setCompletedTxn] = useState(null);
+
+  // Lock to avoid multi-triggering while a scan is being processed
+  const isScanningLocked = useRef(false);
 
   // Laser scan line animation
   const laserAnim = useRef(new Animated.Value(0)).current;
@@ -71,9 +72,17 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
   }, [route?.params]);
 
   const handleQrData = async (rawString) => {
+    if (!rawString || typeof rawString !== "string" || rawString.trim().length === 0) {
+      return;
+    }
+
+    isScanningLocked.current = true;
     setScanned(true);
+
     if (Platform.OS !== "web") {
-      Vibration.vibrate(60);
+      try {
+        Vibration.vibrate(60);
+      } catch (e) {}
     }
 
     const parsed = parseQrData(rawString);
@@ -90,9 +99,17 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
     await speechService.speakAnalysis(analysis, language);
   };
 
-  const handleBarCodeScanned = ({ data }) => {
-    if (!scanned && data) {
-      handleQrData(data);
+  const handleBarCodeScanned = (event) => {
+    if (scanned || isScanningLocked.current) return;
+
+    const qrData =
+      event?.data ||
+      event?.nativeEvent?.data ||
+      event?.raw ||
+      (typeof event === "string" ? event : null);
+
+    if (qrData && typeof qrData === "string" && qrData.trim().length > 0) {
+      handleQrData(qrData);
     }
   };
 
@@ -107,17 +124,25 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const uri = result.assets[0].uri;
         const decoded = await decodeQrFromImageUri(uri);
-        handleQrData(decoded);
+        if (decoded) {
+          handleQrData(decoded);
+        } else {
+          Alert.alert(
+            "QR Detection",
+            "Could not read QR code from this image. Please select a clearer photo."
+          );
+        }
       }
     } catch (e) {
       Alert.alert(
         "Gallery Scan",
-        "Could not detect QR code in selected image. Please try another image or use sample presets."
+        "Could not detect QR code in selected image. Please try another image."
       );
     }
   };
 
   const handleResetScan = () => {
+    isScanningLocked.current = false;
     setScanned(false);
     setAnalysisResult(null);
     setCustomAmount("");
@@ -181,17 +206,19 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
         {!scanned ? (
           <View style={styles.cameraContainer}>
             {permission?.granted ? (
-              <CameraView
-                style={styles.camera}
-                facing={facing}
-                enableTorch={torch}
-                onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-                barcodeScannerSettings={{
-                  barcodeTypes: ["qr"],
-                }}
-              >
-                {/* Viewfinder Target Reticle */}
-                <View style={styles.overlayArea}>
+              <View style={styles.cameraWrap}>
+                <CameraView
+                  style={StyleSheet.absoluteFillObject}
+                  facing={facing}
+                  enableTorch={torch}
+                  onBarcodeScanned={handleBarCodeScanned}
+                  barcodeScannerSettings={{
+                    barcodeTypes: ["qr"],
+                  }}
+                />
+
+                {/* Viewfinder Target Reticle Overlay */}
+                <View style={styles.overlayArea} pointerEvents="none">
                   <View style={styles.reticle}>
                     <View style={[styles.corner, styles.tl]} />
                     <View style={[styles.corner, styles.tr]} />
@@ -210,7 +237,7 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
                     {getTranslation(language, "alignQR")}
                   </Text>
                 </View>
-              </CameraView>
+              </View>
             ) : (
               <View style={styles.permissionBox}>
                 <Text style={styles.permIcon}>📷</Text>
@@ -253,19 +280,19 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
           </View>
         ) : null}
 
-        {/* Action Buttons: Sample Scenarios & Gallery */}
+        {/* Action Buttons: Gallery or Scan Another */}
         <View style={styles.scannerActionsRow}>
-          <TouchableOpacity
-            style={styles.actionBtnSample}
-            onPress={() => setSampleModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.actionBtnSampleText}>
-              ⚡ {getTranslation(language, "trySampleQRs")}
-            </Text>
-          </TouchableOpacity>
-
-          {scanned && (
+          {!scanned ? (
+            <TouchableOpacity
+              style={styles.actionBtnGallery}
+              onPress={pickFromGallery}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionBtnGalleryText}>
+                🖼️ {getTranslation(language, "galleryQR")}
+              </Text>
+            </TouchableOpacity>
+          ) : (
             <TouchableOpacity
               style={styles.actionBtnReset}
               onPress={handleResetScan}
@@ -289,7 +316,7 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
               }
             />
 
-            {/* Review Payment Card (Fig 9.6 & 9.7) */}
+            {/* Review Payment Card */}
             <View style={styles.reviewCard}>
               <Text style={styles.reviewTitle}>
                 {getTranslation(language, "reviewPayment")}
@@ -395,14 +422,6 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
         onSelectLanguage={setLanguage}
         onClose={() => setLangModalVisible(false)}
       />
-
-      {/* Preset Test Scenarios Modal */}
-      <SampleQrModal
-        visible={sampleModalVisible}
-        language={language}
-        onSelectPreset={handleQrData}
-        onClose={() => setSampleModalVisible(false)}
-      />
     </View>
   );
 }
@@ -425,14 +444,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: COLORS.primaryDark,
     marginBottom: 16,
+    position: "relative",
     ...SHADOWS.md,
   },
-  camera: {
-    flex: 1,
+  cameraWrap: {
+    ...StyleSheet.absoluteFillObject,
   },
   overlayArea: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -505,14 +525,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 10,
+    zIndex: 10,
   },
   controlBtn: {
-    backgroundColor: "rgba(15, 23, 42, 0.75)",
+    backgroundColor: "rgba(15, 23, 42, 0.8)",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(255,255,255,0.25)",
   },
   controlBtnActive: {
     backgroundColor: COLORS.warningAmber,
@@ -559,33 +580,34 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 16,
   },
-  actionBtnSample: {
+  actionBtnGallery: {
     flex: 1,
-    backgroundColor: COLORS.accentLight,
+    backgroundColor: COLORS.surface,
     borderWidth: 1.5,
-    borderColor: "#C7D2FE",
+    borderColor: COLORS.borderDark,
     borderRadius: 16,
     paddingVertical: 12,
     alignItems: "center",
+    ...SHADOWS.sm,
   },
-  actionBtnSampleText: {
-    color: COLORS.accent,
+  actionBtnGalleryText: {
+    color: COLORS.primaryDark,
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: 14,
   },
   actionBtnReset: {
     flex: 1,
     backgroundColor: COLORS.surface,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: COLORS.primaryLight,
     borderRadius: 16,
     paddingVertical: 12,
     alignItems: "center",
   },
   actionBtnResetText: {
-    color: COLORS.text,
+    color: COLORS.primaryLight,
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: 14,
   },
   resultContainer: {
     width: "100%",

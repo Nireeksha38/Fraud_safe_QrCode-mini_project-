@@ -56,11 +56,6 @@ export default function LoginScreen({ navigation, language, setLanguage, onLogin
     }
   };
 
-  const handleDemoFill = () => {
-    setPhone("9876543210");
-    setPin("1234");
-  };
-
   const currentLangObj = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];
 
   return (
@@ -147,17 +142,6 @@ export default function LoginScreen({ navigation, language, setLanguage, onLogin
             <Text style={styles.biometricIcon}>👆</Text>
             <Text style={styles.biometricText}>
               {getTranslation(language, "biometricAuth")}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Quick Demo Credentials Button */}
-          <TouchableOpacity
-            style={styles.demoFillBtn}
-            onPress={handleDemoFill}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.demoFillText}>
-              ⚡ Quick Fill Demo: 9876543210 / 1234
             </Text>
           </TouchableOpacity>
 

@@ -38,60 +38,60 @@ export function parseQrData(rawData) {
 
   const cleanData = rawData.trim();
 
-  // Case 1: Standard UPI Scheme (upi://pay?...)
-  if (cleanData.toLowerCase().startsWith("upi://pay")) {
+  // Case 1: Standard UPI Scheme (upi://pay?...) - Case-insensitive match
+  if (/^upi:\/\/pay/i.test(cleanData)) {
     try {
-      const url = new URL(cleanData.replace(/^upi:\/\/pay\?/, "https://fakeupi.internal/?"));
-      const params = url.searchParams;
+      const queryIndex = cleanData.indexOf("?");
+      const queryString = queryIndex !== -1 ? cleanData.substring(queryIndex + 1) : "";
+      const pairs = queryString.split("&");
+      const map = {};
 
-      const pa = params.get("pa") || "";
-      const pn = params.get("pn") || "";
-      const am = params.get("am") || "";
-      const cu = params.get("cu") || "INR";
-      const mc = params.get("mc") || "";
-      const tr = params.get("tr") || "";
-      const tn = params.get("tn") || "";
-      const linkUrl = params.get("url") || "";
+      pairs.forEach((p) => {
+        const eqIdx = p.indexOf("=");
+        if (eqIdx !== -1) {
+          const k = p.substring(0, eqIdx).trim().toLowerCase();
+          const v = p.substring(eqIdx + 1);
+          try {
+            map[k] = decodeURIComponent(v.replace(/\+/g, " "));
+          } catch (e) {
+            map[k] = v;
+          }
+        }
+      });
+
+      const upiId = map["pa"] || "";
+      const rawMerchant = map["pn"] || "";
+      const amValue = map["am"] || "";
+      const parsedAmount = amValue ? parseFloat(amValue) : 0;
+      const currency = map["cu"] || "INR";
+      const merchantCode = map["mc"] || "";
+      const transactionRef = map["tr"] || "";
+      const note = map["tn"] || "";
+      const linkUrl = map["url"] || "";
+
+      let merchantName = rawMerchant;
+      if (!merchantName && upiId) {
+        const prefix = upiId.split("@")[0] || "Merchant";
+        merchantName = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+      } else if (!merchantName) {
+        merchantName = "Merchant";
+      }
 
       return {
-        isValid: true,
+        isValid: Boolean(upiId),
         type: "UPI_URI",
-        merchantName: decodeURIComponent(pn).replace(/\+/g, " ") || "Unknown Merchant",
-        upiId: pa,
-        amount: am ? parseFloat(am) : 0,
-        currency: cu,
-        merchantCode: mc,
-        transactionRef: tr,
-        note: decodeURIComponent(tn).replace(/\+/g, " ") || "",
+        merchantName,
+        upiId,
+        amount: isNaN(parsedAmount) ? 0 : parsedAmount,
+        currency,
+        merchantCode,
+        transactionRef,
+        note,
         embeddedUrl: linkUrl,
         raw: cleanData,
       };
     } catch (e) {
-      // Fallback query parsing if URL class fails
-      const queryIndex = cleanData.indexOf("?");
-      if (queryIndex !== -1) {
-        const query = cleanData.substring(queryIndex + 1);
-        const pairs = query.split("&");
-        const map = {};
-        pairs.forEach((p) => {
-          const [k, v] = p.split("=");
-          if (k) map[k.toLowerCase()] = decodeURIComponent(v || "");
-        });
-
-        return {
-          isValid: !!map["pa"],
-          type: "UPI_URI",
-          merchantName: map["pn"] || "Unknown Merchant",
-          upiId: map["pa"] || "",
-          amount: map["am"] ? parseFloat(map["am"]) : 0,
-          currency: map["cu"] || "INR",
-          merchantCode: map["mc"] || "",
-          transactionRef: map["tr"] || "",
-          note: map["tn"] || "",
-          embeddedUrl: map["url"] || "",
-          raw: cleanData,
-        };
-      }
+      console.warn("UPI parsing exception", e);
     }
   }
 
@@ -121,15 +121,31 @@ export function parseQrData(rawData) {
     // Not JSON
   }
 
-  // Case 3: Raw UPI ID or Web Link
-  if (cleanData.includes("@")) {
+  // Case 3: Raw UPI ID or contact (e.g. name@okhdfcbank)
+  if (cleanData.includes("@") && !cleanData.includes(" ") && cleanData.length < 60) {
+    const prefix = cleanData.split("@")[0] || "Merchant";
+    const derivedName = prefix.charAt(0).toUpperCase() + prefix.slice(1);
     return {
       isValid: true,
       type: "RAW_UPI_ID",
-      merchantName: "Peer Contact",
+      merchantName: derivedName,
       upiId: cleanData,
       amount: 0,
       currency: "INR",
+      raw: cleanData,
+    };
+  }
+
+  // Case 4: Web URL
+  if (/^https?:\/\//i.test(cleanData)) {
+    return {
+      isValid: true,
+      type: "WEB_URL",
+      merchantName: "External Web Link",
+      upiId: cleanData,
+      amount: 0,
+      currency: "INR",
+      embeddedUrl: cleanData,
       raw: cleanData,
     };
   }
@@ -139,7 +155,7 @@ export function parseQrData(rawData) {
     type: "UNSUPPORTED",
     error: "Scanned QR does not conform to UPI standard specifications",
     merchantName: "Unknown",
-    upiId: "",
+    upiId: cleanData,
     amount: 0,
     raw: cleanData,
   };
