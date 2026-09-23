@@ -62,13 +62,5 @@ npx expo start
 
 ---
 
-## 🔑 Demo Credentials
-- **Phone**: `9876543210`
-- **Login PIN**: `1234`
-- **Transaction PIN**: `4321`
-
 ---
 
-## 🎓 Department
-Department of Computer Science & Engineering  
-**YIT, Moodbidri**
