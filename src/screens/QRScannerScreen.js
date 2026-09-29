@@ -24,6 +24,7 @@ import HeaderBar from "../components/HeaderBar";
 import LanguageSelectorModal from "../components/LanguageSelectorModal";
 import FraudAlertCard from "../components/FraudAlertCard";
 import PinVerificationModal from "../components/PinVerificationModal";
+import SampleQrModal from "../components/SampleQrModal";
 
 export default function QRScannerScreen({ route, navigation, language, setLanguage }) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -35,6 +36,7 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
   const [showPinModal, setShowPinModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [langModalVisible, setLangModalVisible] = useState(false);
+  const [sampleModalVisible, setSampleModalVisible] = useState(false);
   const [completedTxn, setCompletedTxn] = useState(null);
 
   // Lock to avoid multi-triggering while a scan is being processed
@@ -280,18 +282,30 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
           </View>
         ) : null}
 
-        {/* Action Buttons: Gallery or Scan Another */}
+        {/* Action Buttons: Test Scenarios, Gallery, or Scan Another */}
         <View style={styles.scannerActionsRow}>
           {!scanned ? (
-            <TouchableOpacity
-              style={styles.actionBtnGallery}
-              onPress={pickFromGallery}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.actionBtnGalleryText}>
-                🖼️ {getTranslation(language, "galleryQR")}
-              </Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={styles.actionBtnSample}
+                onPress={() => setSampleModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.actionBtnSampleText}>
+                  ⚡ {getTranslation(language, "trySampleQRs")}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionBtnGallery}
+                onPress={pickFromGallery}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.actionBtnGalleryText}>
+                  🖼️ {getTranslation(language, "galleryQR")}
+                </Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <TouchableOpacity
               style={styles.actionBtnReset}
@@ -421,6 +435,17 @@ export default function QRScannerScreen({ route, navigation, language, setLangua
         activeLanguage={language}
         onSelectLanguage={setLanguage}
         onClose={() => setLangModalVisible(false)}
+      />
+
+      {/* Sample QR Test Scenarios Modal */}
+      <SampleQrModal
+        visible={sampleModalVisible}
+        language={language}
+        onSelectPreset={(payload) => {
+          setSampleModalVisible(false);
+          handleQrData(payload);
+        }}
+        onClose={() => setSampleModalVisible(false)}
       />
     </View>
   );
@@ -579,6 +604,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     marginBottom: 16,
+  },
+  actionBtnSample: {
+    flex: 1.1,
+    backgroundColor: COLORS.accentLight,
+    borderWidth: 1.5,
+    borderColor: "#C7D2FE",
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+    ...SHADOWS.sm,
+  },
+  actionBtnSampleText: {
+    color: COLORS.accent,
+    fontWeight: "700",
+    fontSize: 13,
   },
   actionBtnGallery: {
     flex: 1,

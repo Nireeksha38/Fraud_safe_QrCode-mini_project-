@@ -51,10 +51,6 @@ export default function HomeScreen({ navigation, language, setLanguage }) {
     setBalance(newBal);
   };
 
-  const handleSelectSample = (rawPayload) => {
-    navigation.navigate("QR Scanner", { samplePayload: rawPayload });
-  };
-
   return (
     <View style={styles.container}>
       <HeaderBar
@@ -124,15 +120,15 @@ export default function HomeScreen({ navigation, language, setLanguage }) {
           </View>
         </View>
 
-        {/* Sample Scenario Launcher Banner */}
+        {/* Interactive Sample QR Test Scenarios Banner */}
         <TouchableOpacity
           style={styles.sampleBanner}
           onPress={() => setSampleModalVisible(true)}
-          activeOpacity={0.85}
+          activeOpacity={0.8}
         >
           <View style={styles.sampleLeft}>
             <Text style={styles.sampleIcon}>⚡</Text>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.sampleTitle}>
                 {getTranslation(language, "trySampleQRs")}
               </Text>
@@ -141,7 +137,7 @@ export default function HomeScreen({ navigation, language, setLanguage }) {
               </Text>
             </View>
           </View>
-          <Text style={styles.sampleArrow}>➔</Text>
+          <Text style={styles.sampleArrow}>→</Text>
         </TouchableOpacity>
 
         {/* Quick Actions Grid (Fig 9.5) */}
@@ -299,11 +295,14 @@ export default function HomeScreen({ navigation, language, setLanguage }) {
         onClose={() => setLangModalVisible(false)}
       />
 
-      {/* Preset Test Scenarios Modal */}
+      {/* Sample QR Presets Modal */}
       <SampleQrModal
         visible={sampleModalVisible}
         language={language}
-        onSelectPreset={handleSelectSample}
+        onSelectPreset={(payload) => {
+          setSampleModalVisible(false);
+          navigation.navigate("QR Scanner", { samplePayload: payload });
+        }}
         onClose={() => setSampleModalVisible(false)}
       />
     </View>
